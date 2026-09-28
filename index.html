@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>초등 수학 쌓기나무 마스터</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+        
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background-color: #f3f4f6; 
+            overflow-x: hidden; 
+            overscroll-behavior: none;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .draggable-window { 
+            transition: box-shadow 0.2s, opacity 0.3s, transform 0.3s; 
+            touch-action: none; 
+        }
+        .draggable-window.active { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+        
+        .canvas-container { 
+            position: relative; 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            border-radius: 0.75rem; 
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%); 
+            touch-action: none; 
+        }
+        
+        #custom-modal { backdrop-filter: blur(5px); }
+        .modal-enter { animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes modalPop { 
+            0% { transform: scale(0.8); opacity: 0; } 
+            100% { transform: scale(1); opacity: 1; } 
+        }
+
+        .quiz-view-grid { 
+            display: grid; 
+            gap: 2px; 
+            border: 2px solid #9ca3af; 
+            background-color: #9ca3af; 
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .quiz-cell { background-color: white; width: 100%; height: 100%; }
+        .quiz-cell.filled-top { background-color: #fca5a5; } 
+        .quiz-cell.filled-front { background-color: #60a5fa; border-bottom: 3px solid #2563eb; } 
+        .quiz-cell.filled-right { background-color: #34d399; border-bottom: 3px solid #059669; } 
+        
+        .draw-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 2px; 
+            border: 2px solid #d1d5db; 
+            background-color: #d1d5db; 
+            cursor: pointer; 
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .draw-cell { 
+            background-color: white; 
+            width: 100%; 
+            height: 100%; 
+            aspect-ratio: 1/1; 
+            transition: all 0.15s ease; 
+        }
+        .draw-cell:hover { background-color: #e5e7eb; }
+        .draw-cell.active { background-color: #8b5cf6; transform: scale(0.95); border-radius: 4px; }
+
+        @keyframes scorePop { 
+            0% { transform: scale(1); } 
+            50% { transform: scale(1.4); color: #10b981; } 
+            100% { transform: scale(1); } 
+        }
+        .score-animate { animation: scorePop 0.6s ease; }
+
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .count-grid {
+            display: grid;
+            gap: 2px;
+            background-color: #cbd5e1;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+            width: fit-content;
+            margin: 0 auto;
+        }
+        .count-cell {
+            width: 3rem; 
+            height: 3rem;
+            background-color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #334155;
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .count-cell:hover {
+            background-color: #fed7aa;
+            transform: scale(0.95);
+        }
+        .count-cell.has-blocks {
+            background-color: #fed7aa; 
+            color: #9a3412; 
+        }
+        .count-cell.has-blocks:hover {
+            background-color: #fdba74;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-gray-800 h-[100dvh] flex flex-col">
+
+    <header class="bg-white shadow-sm z-30 relative shrink-0">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 cursor-pointer group" onclick="app.setMode('home')">
+                <div class="w-9 h-9 bg-gradient-to-br from-orange-400 to-red-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-inner group-hover:scale-105 transition-transform">
+                    <i class="fa-solid fa-cubes"></i>
+                </div>
+                <h1 class="text-lg sm:text-xl font-extrabold text-gray-800 tracking-tight hidden sm:block">쌓기나무 마스터</h1>
+            </div>
+            
+            <nav class="flex gap-1 sm:gap-2 flex-1 justify-center">
+                <button onclick="app.setMode('free_build')" id="nav-free_build" class="nav-btn px-3 sm:px-5 py-2 rounded-full font-bold text-sm sm:text-base text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all border border-transparent">
+                    <i class="fa-solid fa-hammer text-blue-400 mr-1 sm:mr-2"></i>자유만들기
+                </button>
+                <button onclick="app.setMode('quiz')" id="nav-quiz" class="nav-btn px-3 sm:px-5 py-2 rounded-full font-bold text-sm sm:text-base text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition-all border border-transparent">
+                    <i class="fa-solid fa-gamepad text-purple-400 mr-1 sm:mr-2"></i>퀴즈도전
+                </button>
+            </nav>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div id="score-display" class="hidden bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-300 text-yellow-800 px-3 sm:px-4 py-1.5 rounded-full font-black shadow-sm flex items-center gap-2 text-sm sm:text-base">
+                    <i class="fa-solid fa-star text-yellow-500"></i> <span class="hidden sm:inline">점수:</span> <span id="current-score" class="text-lg">0</span>
+                </div>
+
+                <button id="btn-view-results" onclick="app.showResultsScreen()" class="hidden bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 rounded-full font-bold text-sm shadow-sm transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-invoice"></i> <span class="hidden sm:inline">결과보기</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 relative bg-gray-100">
+    </main>
+
+    <!-- Custom Modal for Feedback -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900/70 hidden z-[100] flex items-center justify-center opacity-0 transition-opacity duration-300 px-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-sm w-full modal-enter transform scale-95 transition-transform duration-300">
+            <div id="modal-icon" class="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner"></div>
+            <h3 id="modal-title" class="text-2xl sm:text-3xl font-black text-center mb-3 text-gray-800 tracking-tight">Title</h3>
+            <p id="modal-message" class="text-center text-gray-600 mb-8 font-medium text-sm sm:text-base leading-relaxed">Message</p>
+            <button id="modal-btn" onclick="app.closeModal()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 sm:py-4 px-4 rounded-xl transition-all text-lg shadow-lg hover:shadow-xl active:scale-[0.98]">
+                확인
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        class BlockEngine {
+            constructor(containerId, options = {}) {
+                this.container = document.getElementById(containerId);
+                this.gridSize = options.gridSize || 3;
+                this.blockSize = 1;
+                this.gap = 0.04; 
+                this.heightMap = Array(this.gridSize).fill(0).map(() => Array(this.gridSize).fill(0)); 
+                this.maxHeight = options.maxHeight || this.gridSize;
+                this.currentLayer = 'all'; 
+                this.readOnly = options.readOnly || false;
+                this.interactionMode = 'add'; 
+                
+                this.onCountChange = options.onCountChange || (() => {});
+                this.onBlocksChange = options.onBlocksChange || (() => {});
+
+                this.initScene();
+                this.setupInteraction();
+                this.animate();
+
+                this.resizeObserver = new ResizeObserver(() => this.resize());
+                this.resizeObserver.observe(this.container);
+            }
+
+            initScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = null; 
+
+                const aspect = this.container.clientWidth / this.container.clientHeight;
+                this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 100);
+                this.resetCamera();
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                this.container.innerHTML = '';
+                this.container.appendChild(this.renderer.domElement);
+
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.08;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.02; 
+                this.controls.minDistance = 2;
+                this.controls.maxDistance = 20;
+                
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+                this.scene.add(ambientLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
+                dirLight.position.set(5, 10, 7);
+                dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 1024;
+                dirLight.shadow.mapSize.height = 1024;
+                dirLight.shadow.camera.near = 0.5;
+                dirLight.shadow.camera.far = 25;
+                const d = this.gridSize;
+                dirLight.shadow.camera.left = -d;
+                dirLight.shadow.camera.right = d;
+                dirLight.shadow.camera.top = d;
+                dirLight.shadow.camera.bottom = -d;
+                this.scene.add(dirLight);
+
+                const fillLight = new THREE.DirectionalLight(0xe0f2fe, 0.4);
+                fillLight.position.set(-5, 3, -5);
+                this.scene.add(fillLight);
+
+                const gridHelper = new THREE.GridHelper(this.gridSize, this.gridSize, 0x94a3b8, 0xcbd5e1);
+                gridHelper.position.y = 0.01; 
+                gridHelper.material.opacity = 0.4;
+                gridHelper.material.transparent = true;
+                this.scene.add(gridHelper);
+                
+                const baseGeo = new THREE.PlaneGeometry(this.gridSize, this.gridSize);
+                const baseMat = new THREE.MeshBasicMaterial({ visible: false });
+                this.basePlane = new THREE.Mesh(baseGeo, baseMat);
+                this.basePlane.rotation.x = -Math.PI / 2;
+                this.scene.add(this.basePlane);
+
+                this.addLabels();
+
+                this.blockGeo = new THREE.BoxGeometry(this.blockSize - this.gap, this.blockSize - this.gap, this.blockSize - this.gap);
+                
+                this.edgeMat = new THREE.LineBasicMaterial({ color: 0xc2410c, linewidth: 2 }); 
+                this.blockMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xfdba74, 
+                    roughness: 0.4, 
+                    metalness: 0.1,
+                });
+
+                this.transparentBlockMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x94a3b8, 
+                    roughness: 0.8, 
+                    transparent: true, 
+                    opacity: 0.15 
+                });
+                this.transparentEdgeMat = new THREE.LineBasicMaterial({ 
+                    color: 0x64748b, 
+                    transparent: true, 
+                    opacity: 0.15 
+                });
+                
+                this.blockGroup = new THREE.Group();
+                this.scene.add(this.blockGroup);
+                
+                this.hitBoxGroup = new THREE.Group();
+                this.scene.add(this.hitBoxGroup);
+                this.updateHitBoxes();
+            }
+
+            createTextSprite(message, bgColorStr, textColorStr) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = bgColorStr;
+                ctx.beginPath();
+                ctx.roundRect(10, 10, 108, 44, 15);
+                ctx.fill();
+                
+                ctx.font = 'bold 28px "Noto Sans KR", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = textColorStr;
+                ctx.fillText(message, canvas.width / 2, canvas.height / 2 + 2);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.scale.set(1.5, 0.75, 1);
+                sprite.renderOrder = 999;
+                return sprite;
+            }
+
+            addLabels() {
+                const offset = this.gridSize / 2 + 0.8;
+                const frontSprite = this.createTextSprite('앞', 'rgba(239, 68, 68, 0.9)', '#ffffff');
+                frontSprite.position.set(0, 0, offset);
+                this.scene.add(frontSprite);
+
+                const rightSprite = this.createTextSprite('옆', 'rgba(59, 130, 246, 0.9)', '#ffffff');
+                rightSprite.position.set(offset, 0, 0);
+                this.scene.add(rightSprite);
+            }
+
+            resetCamera() {
+                const dist = Math.max(this.gridSize * 1.8, 6);
+                this.camera.position.set(dist, dist * 0.8, dist);
+                this.camera.lookAt(0, 0, 0);
+            }
+
+            setupInteraction() {
+                let isDragging = false;
+                let startPos = {x: 0, y: 0};
+                let pressTimer = null;
+
+                const pointerDownHandler = (e) => {
+                    isDragging = false;
+                    startPos = {x: e.clientX, y: e.clientY};
+                    if (e.pointerType === 'touch' && !this.readOnly) {
+                        pressTimer = setTimeout(() => {
+                            isDragging = true; 
+                            this.handleInteraction(e, true); 
+                        }, 500); 
+                    }
+                };
+
+                const pointerMoveHandler = (e) => {
+                    const threshold = e.pointerType === 'touch' ? 10 : 5;
+                    if (Math.abs(e.clientX - startPos.x) > threshold || Math.abs(e.clientY - startPos.y) > threshold) {
+                        isDragging = true;
+                        if (pressTimer) clearTimeout(pressTimer);
+                    }
+                };
+
+                const pointerUpHandler = (e) => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                    if (this.readOnly || isDragging) return; 
+                    
+                    if (e.button !== 0 && e.button !== 2) return; 
+                    
+                    const isDelete = (this.interactionMode === 'delete' && e.button === 0) || e.shiftKey || e.button === 2;
+                    this.handleInteraction(e, isDelete);
+                };
+
+                this.container.addEventListener('pointerdown', pointerDownHandler);
+                this.container.addEventListener('pointermove', pointerMoveHandler);
+                this.container.addEventListener('pointerup', pointerUpHandler);
+                this.container.addEventListener('contextmenu', e => e.preventDefault());
+            }
+
+            handleInteraction(event, isDelete) {
+                const rect = this.container.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects([...this.hitBoxGroup.children, this.basePlane]);
+
+                if (intersects.length > 0) {
+                    const hit = intersects[0];
+                    let gridX, gridZ;
+
+                    if (hit.object === this.basePlane) {
+                        gridX = Math.floor(hit.point.x + this.gridSize / 2);
+                        gridZ = Math.floor(hit.point.z + this.gridSize / 2);
+                    } else {
+                        gridX = hit.object.userData.gx;
+                        gridZ = hit.object.userData.gz;
+                    }
+
+                    if (gridX >= 0 && gridX < this.gridSize && gridZ >= 0 && gridZ < this.gridSize) {
+                        if (isDelete) {
+                            this.removeTopBlock(gridX, gridZ);
+                        } else {
+                            this.addBlock(gridX, gridZ);
+                        }
+                    }
+                }
+            }
+
+            addBlock(x, z) {
+                if (this.heightMap[x][z] >= this.maxHeight) return;
+                this.heightMap[x][z]++;
+                this.rebuildMeshes();
+            }
+
+            removeTopBlock(x, z) {
+                if (this.heightMap[x][z] > 0) {
+                    this.heightMap[x][z]--;
+                    this.rebuildMeshes();
+                }
+            }
+            
+            updateHitBoxes() {
+                while(this.hitBoxGroup.children.length > 0) {
+                    const child = this.hitBoxGroup.children[0];
+                    if(child.geometry) child.geometry.dispose();
+                    this.hitBoxGroup.remove(child);
+                }
+                
+                const offset = this.gridSize / 2 - 0.5;
+                const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+
+                for (let x = 0; x < this.gridSize; x++) {
+                    for (let z = 0; z < this.gridSize; z++) {
+                        const height = this.heightMap[x][z];
+                        if (height > 0) {
+                            const hitGeo = new THREE.BoxGeometry(this.blockSize, height, this.blockSize);
+                            const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+                            hitMesh.position.set(x - offset, height / 2, z - offset);
+                            hitMesh.userData = { gx: x, gz: z };
+                            this.hitBoxGroup.add(hitMesh);
+                        }
+                    }
+                }
+            }
+
+            rebuildMeshes() {
+                while(this.blockGroup.children.length > 0) {
+                    this.blockGroup.remove(this.blockGroup.children[0]); 
+                }
+                
+                let count = 0;
+                const offset = this.gridSize / 2 - 0.5;
+
+                for (let x = 0; x < this.gridSize; x++) {
+                    for (let z = 0; z < this.gridSize; z++) {
+                        const height = this.heightMap[x][z];
+                        for (let y = 0; y < height; y++) {
+                            let isTransparent = (this.currentLayer !== 'all' && y !== parseInt(this.currentLayer) - 1);
+                            const currentMat = isTransparent ? this.transparentBlockMat : this.blockMat;
+                            const currentEdgeMat = isTransparent ? this.transparentEdgeMat : this.edgeMat;
+
+                            const mesh = new THREE.Mesh(this.blockGeo, currentMat);
+                            mesh.position.set(x - offset, y + 0.5, z - offset);
+                            mesh.castShadow = !isTransparent;
+                            mesh.receiveShadow = !isTransparent;
+
+                            const edges = new THREE.EdgesGeometry(this.blockGeo);
+                            const line = new THREE.LineSegments(edges, currentEdgeMat);
+                            mesh.add(line);
+                            
+                            this.blockGroup.add(mesh);
+                        }
+                        count += height;
+                    }
+                }
+                this.onCountChange(count);
+                this.onBlocksChange(this.heightMap);
+                this.updateHitBoxes();
+            }
+
+            setCameraView(viewType) {
+                const dist = Math.max(this.gridSize * 1.8, 6);
+                switch (viewType) {
+                    case 'front': 
+                        this.camera.position.set(0, dist * 0.15, dist * 1.2); 
+                        break;
+                    case 'right': 
+                        this.camera.position.set(dist * 1.2, dist * 0.15, 0); 
+                        break;
+                    case 'top': 
+                        this.camera.position.set(0.01, dist * 1.4, 0.01); 
+                        break;
+                    default: 
+                        this.resetCamera();
+                }
+                this.camera.lookAt(0, 0, 0);
+                this.controls.target.set(0, 0, 0);
+                this.controls.update();
+            }
+
+            setLayer(layer) {
+                this.currentLayer = layer;
+                this.rebuildMeshes();
+            }
+
+            clearBlocks() {
+                for (let x=0; x<this.gridSize; x++) {
+                    for (let z=0; z<this.gridSize; z++) {
+                        this.heightMap[x][z] = 0;
+                    }
+                }
+                this.rebuildMeshes();
+            }
+            
+            loadHeightMap(map) {
+                for(let x=0; x<this.gridSize; x++) {
+                    for(let z=0; z<this.gridSize; z++) {
+                        this.heightMap[x][z] = map[x][z] || 0;
+                    }
+                }
+                this.rebuildMeshes();
+            }
+
+            resize() {
+                if (!this.camera || !this.renderer) return;
+                const width = this.container.clientWidth;
+                const height = this.container.clientHeight;
+                this.camera.aspect = width / height;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(width, height);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const App = {
+            mode: 'home',
+            score: 0,
+            nickname: '',
+            quizHistory: [],
+            quizTimer: null,
+            quizTimeLeft: 60,
+            currentQuizType: 1,
+            targetMap: null,
+            targetCount: 0,
+            possibleCounts: new Set(),
+            minCount: 0,
+            maxCount: 0,
+            currentGridSize: 3,
+            
+            mainEngine: null,
+            quizEngine: null,
+            
+            init() {
+                this.renderHome();
+                window.app = this;
+                
+                window.addEventListener('resize', () => {
+                    if(this.mainEngine) this.mainEngine.resize();
+                    if(this.quizEngine) this.quizEngine.resize();
+                });
+            },
+
+            addScore(points) {
+                this.score += points;
+                const scoreEl = document.getElementById('current-score');
+                if(scoreEl) {
+                    scoreEl.innerText = this.score;
+                    scoreEl.classList.remove('score-animate');
+                    void scoreEl.offsetWidth;
+                    scoreEl.classList.add('score-animate');
+                }
+            },
+
+            setMode(newMode) {
+                this.mode = newMode;
+                clearInterval(this.quizTimer);
+
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-gray-100', 'border-gray-200', 'text-gray-800');
+                    btn.classList.add('text-gray-500');
+                    if(btn.id === `nav-${newMode}`) {
+                        btn.classList.add('bg-gray-100', 'border-gray-200', 'text-gray-800');
+                        btn.classList.remove('text-gray-500');
+                    }
+                });
+
+                document.getElementById('score-display').classList.toggle('hidden', newMode !== 'quiz');
+                document.getElementById('btn-view-results').classList.toggle('hidden', newMode !== 'quiz');
+
+                const main = document.getElementById('main-content');
+                main.innerHTML = ''; 
+
+                if (newMode === 'home') this.renderHome();
+                else if (newMode === 'free_build') this.startFreeBuild();
+                else if (newMode === 'quiz') {
+                    this.promptNickname();
+                }
+            },
+
+            promptNickname() {
+                const html = `
+                    <div class="flex flex-col items-center justify-center h-full max-w-md mx-auto text-center p-6 fade-in">
+                        <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 border border-gray-100 w-full flex flex-col items-center gap-6">
+                            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-3xl shadow-inner">
+                                <i class="fa-solid fa-user-astronaut"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-black text-gray-800 mb-2">닉네임을 입력해주세요</h3>
+                                <p class="text-sm text-gray-500">퀴즈 결과 표 및 성적표 이미지에 등록됩니다.</p>
+                            </div>
+                            <input type="text" id="nickname-input" value="${this.nickname || ''}" placeholder="예: 수학천재" maxlength="10" 
+                                class="w-full text-center text-xl font-bold py-3 px-4 border-2 border-purple-200 rounded-2xl outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all text-gray-800">
+                            <button onclick="app.confirmNicknameAndStart()" class="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all text-lg">
+                                퀴즈 시작하기 <i class="fa-solid fa-play ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+                const input = document.getElementById('nickname-input');
+                if(input) {
+                    input.focus();
+                    input.addEventListener('keypress', (e) => {
+                        if(e.key === 'Enter') this.confirmNicknameAndStart();
+                    });
+                }
+            },
+
+            confirmNicknameAndStart() {
+                const input = document.getElementById('nickname-input');
+                const val = input ? input.value.trim() : '';
+                this.nickname = val || '쌓기나무 마스터';
+                this.score = 0;
+                this.quizHistory = [];
+                const scoreEl = document.getElementById('current-score');
+                if(scoreEl) scoreEl.innerText = '0';
+                this.startRandomQuiz();
+            },
+
+            recordResult(quizTypeNum, typeName, isCorrect, points) {
+                this.quizHistory.push({
+                    id: this.quizHistory.length + 1,
+                    typeNum: quizTypeNum,
+                    typeName: typeName,
+                    isCorrect: isCorrect,
+                    points: points
+                });
+            },
+
+            showResultsScreen() {
+                clearInterval(this.quizTimer);
+                const totalSolved = this.quizHistory.length;
+                const correctCount = this.quizHistory.filter(item => item.isCorrect).length;
+                const accuracy = totalSolved > 0 ? Math.round((correctCount / totalSolved) * 100) : 0;
+                const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+                let historyRows = '';
+                if (totalSolved === 0) {
+                    historyRows = `<tr><td colspan="4" class="py-8 text-center text-gray-400 font-medium">아직 풀이한 퀴즈 문제가 없습니다.</td></tr>`;
+                } else {
+                    this.quizHistory.forEach(item => {
+                        historyRows += `
+                            <tr class="border-b border-gray-100 text-sm">
+                                <td class="py-3 px-3 font-bold text-gray-500 text-center">#${item.id}</td>
+                                <td class="py-3 px-3 font-bold text-gray-700">${item.typeName}</td>
+                                <td class="py-3 px-3 text-center">
+                                    ${item.isCorrect 
+                                        ? '<span class="inline-flex items-center justify-center w-7 h-7 bg-green-100 text-green-600 rounded-full font-black"><i class="fa-solid fa-o"></i></span>' 
+                                        : '<span class="inline-flex items-center justify-center w-7 h-7 bg-red-100 text-red-500 rounded-full font-black"><i class="fa-solid fa-xmark"></i></span>'}
+                                </td>
+                                <td class="py-3 px-3 text-center font-black ${item.points > 0 ? 'text-green-600' : 'text-gray-400'}">+${item.points}점</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                const html = `
+                    <div class="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto p-2 sm:p-4 fade-in">
+                        
+                        <!-- Result Card Container for html2canvas Export -->
+                        <div id="result-card" class="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 sm:p-8 w-full flex flex-col gap-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500"></div>
+                            
+                            <!-- Card Header -->
+                            <div class="flex justify-between items-start border-b border-gray-100 pb-5 mt-2">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-purple-100 text-purple-700 text-xs font-black px-2.5 py-1 rounded-md">공간과 입체</span>
+                                        <span class="text-xs text-gray-400 font-medium">${today}</span>
+                                    </div>
+                                    <h2 class="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">쌓기나무 퀴즈 결고파ㅛ</h2>
+                                </div>
+                                <div class="bg-gradient-to-br from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-2xl text-center shadow-md">
+                                    <div class="text-[10px] uppercase font-bold opacity-80">도전 닉네임</div>
+                                    <div class="font-black text-base sm:text-lg">${this.nickname}</div>
+                                </div>
+                            </div>
+
+                            <!-- Score Metrics Summary -->
+                            <div class="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
+                                <div>
+                                    <p class="text-xs font-bold text-gray-400 mb-1">총 획득 점수</p>
+                                    <p class="text-2xl sm:text-3xl font-black text-purple-600">${this.score}<span class="text-sm">점</span></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-gray-400 mb-1">풀이 / 정답 수</p>
+                                    <p class="text-2xl sm:text-3xl font-black text-gray-800">${correctCount}<span class="text-sm font-normal text-gray-500"> / ${totalSolved}</span></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-gray-400 mb-1">정답률</p>
+                                    <p class="text-2xl sm:text-3xl font-black text-indigo-600">${accuracy}<span class="text-sm">%</span></p>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Question Breakdown -->
+                            <div>
+                                <h4 class="font-black text-gray-800 text-sm mb-3 flex items-center gap-2">
+                                    <i class="fa-solid fa-list-check text-purple-500"></i> 문항별 상세 기록
+                                </h4>
+                                <div class="overflow-x-auto rounded-xl border border-gray-100">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="bg-gray-100 text-gray-600 text-xs font-bold border-b border-gray-200">
+                                                <th class="py-2.5 px-3 text-center w-12">번호</th>
+                                                <th class="py-2.5 px-3">퀴즈 유형</th>
+                                                <th class="py-2.5 px-3 text-center w-16">결과</th>
+                                                <th class="py-2.5 px-3 text-center w-20">득점</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            ${historyRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Card Footer Watermark (URL Removed) -->
+                            <div class="pt-2 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400 font-medium">
+                                <span><i class="fa-solid fa-cubes text-purple-400 mr-1"></i> 쌓기나무 마스터</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col sm:flex-row gap-3 w-full mt-6">
+                            <button onclick="app.downloadResultImage()" class="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-black py-3.5 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-base">
+                                <i class="fa-solid fa-download"></i> 성적표 사진으로 저장하기
+                            </button>
+                            <button onclick="app.startRandomQuiz()" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black px-6 py-3.5 rounded-2xl shadow-lg transition-all text-base">
+                                이어서 더 풀기 <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+            },
+
+            downloadResultImage() {
+                const target = document.getElementById('result-card');
+                if(!target) return;
+
+                this.showModal('이미지 생성 중', '성적표 사진을 만들고 있습니다...', 'info');
+
+                setTimeout(() => {
+                    html2canvas(target, { 
+                        scale: 2, 
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    }).then(canvas => {
+                        this.closeModal();
+                        const link = document.createElement('a');
+                        link.download = `쌓기나무_퀴즈성적표_${this.nickname || '마스터'}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }).catch(() => {
+                        this.closeModal();
+                        this.showModal('저장 실패', '이미지 저장 도중 오류가 발생했습니다.', 'error');
+                    });
+                }, 300);
+            },
+
+            checkQuiz1() {
+                if(!this.quizEngine) return;
+                
+                const targetProj = this.getProjections(this.targetMap);
+                const userProj = this.getProjections(this.quizEngine.heightMap);
+                
+                let isTopCorrect = true;
+                let isFrontCorrect = true;
+                let isRightCorrect = true;
+                
+                for(let i=0; i<3; i++) {
+                    if (targetProj.front[i] !== userProj.front[i]) isFrontCorrect = false;
+                    if (targetProj.right[i] !== userProj.right[i]) isRightCorrect = false;
+                    for(let j=0; j<3; j++) {
+                        if (targetProj.top[i][j] !== userProj.top[i][j]) isTopCorrect = false;
+                    }
+                }
+                
+                let isExactMatch = true;
+                for(let x=0; x<3; x++) {
+                    for(let z=0; z<3; z++) {
+                        if(this.quizEngine.heightMap[x][z] !== this.targetMap[x][z]) { 
+                            isExactMatch = false; 
+                            break; 
+                        }
+                    }
+                }
+
+                if (isTopCorrect && isFrontCorrect && isRightCorrect) {
+                    const pts = isExactMatch ? 15 : 10;
+                    this.addScore(pts);
+                    this.recordResult(1, '유형 1 (똑같이 만들기)', true, pts);
+                    this.showModal(`정답입니다! (+${pts}점)`, '위, 앞, 옆 모습을 모두 맞혔습니다.', 'success', () => this.startRandomQuiz());
+                } else {
+                    this.recordResult(1, '유형 1 (똑같이 만들기)', false, 0);
+                    this.showModal('오답입니다.', '제시된 모습과 일치하지 않습니다.', 'error', () => this.startRandomQuiz());
+                }
+            },
+
+            checkQuiz2() {
+                const inputVal = document.getElementById('quiz2-input').value;
+                if(inputVal === '') {
+                    this.showModal('알림', '정답을 입력해주세요!', 'info');
+                    return;
+                }
+                
+                const input = parseInt(inputVal);
+                clearInterval(this.quizTimer); 
+
+                let timeBonus = Math.floor(this.quizTimeLeft / 2);
+
+                if (this.possibleCounts.has(input)) {
+                    let pts = 15 + timeBonus;
+                    let extraMsg = '정답입니다!';
+                    if (this.possibleCounts.size > 1 && input === this.minCount) {
+                        pts = 25 + timeBonus;
+                        extraMsg = '정답입니다! (쌓기나무를 가장 적게 사용하였습니다!)';
+                    } else if (this.possibleCounts.size > 1 && input === this.maxCount) {
+                        pts = 20 + timeBonus;
+                        extraMsg = '정답입니다! (쌓기나무를 가장 많이 사용하였습니다!)';
+                    }
+
+                    this.addScore(pts);
+                    this.recordResult(2, '유형 2 (개수 맞히기)', true, pts);
+                    this.showModal('정답입니다!', `${extraMsg}<br>(+${pts}점)`, 'success', () => this.startRandomQuiz());
+                } else {
+                    this.recordResult(2, '유형 2 (개수 맞히기)', false, 0);
+                    let ansStr = Array.from(this.possibleCounts).sort((a,b)=>a-b).join(', ');
+                    this.showModal('오답입니다.', `정답은 <b class="text-xl text-indigo-600">${ansStr}개</b>입니다.`, 'error', () => this.startRandomQuiz());
+                }
+            },
+
+            checkQuiz3() {
+                if(!this.quizEngine) return;
+                
+                let isCorrect = true;
+                for(let layer = 1; layer <= 3; layer++) {
+                    const grid = document.getElementById(`draw-grid-${layer}`);
+                    if(!grid) continue;
+                    
+                    const cells = grid.querySelectorAll('.draw-cell');
+                    for(let i = 0; i < 9; i++) {
+                        const x = i % 3;
+                        const z = Math.floor(i / 3);
+                        const shouldBeDrawn = this.targetMap[x][z] >= layer;
+                        const isDrawn = cells[i].classList.contains('active');
+                        if(shouldBeDrawn !== isDrawn) {
+                            isCorrect = false;
+                            break;
+                        }
+                    }
+                    if(!isCorrect) break;
+                }
+
+                if (isCorrect) {
+                    this.addScore(20);
+                    this.recordResult(3, '유형 3 (층별 단면도)', true, 20);
+                    this.showModal('정답입니다! (+20점)', '층별 단면도를 올바르게 작성하였습니다.', 'success', () => this.startRandomQuiz());
+                } else {
+                    this.recordResult(3, '유형 3 (층별 단면도)', false, 0);
+                    this.showModal('오답입니다.', '층별 단면도가 일치하지 않습니다.', 'error', () => this.startRandomQuiz());
+                }
+            },
+
+            renderHome() {
+                const html = `
+                    <div class="flex flex-col items-center justify-center h-full max-w-4xl mx-auto text-center gap-6 sm:gap-10 fade-in py-10 px-4">
+                        <div class="w-24 h-24 sm:w-36 sm:h-36 bg-gradient-to-br from-orange-100 to-amber-100 rounded-[2rem] flex items-center justify-center shadow-xl transform rotate-12 mb-2 border-4 border-white">
+                            <i class="fa-solid fa-cubes text-5xl sm:text-7xl text-orange-400 drop-shadow-md"></i>
+                        </div>
+                        <h2 class="text-3xl sm:text-5xl md:text-6xl font-black text-gray-800 leading-tight tracking-tight">
+                            입체도형의 기초,<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">쌓기나무</span> 마스터
+                        </h2>
+                        <p class="text-base sm:text-xl text-gray-500 font-medium max-w-xl leading-relaxed">
+                            3D로 직접 이리저리 돌려보며 만들고,<br class="sm:hidden"> 퀴즈풀이로 학습해보세요!
+                        </p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full max-w-2xl mt-4 sm:mt-8">
+                            <button onclick="app.setMode('free_build')" class="bg-white border-2 border-blue-100 hover:border-blue-400 hover:shadow-2xl p-6 sm:p-8 rounded-3xl transition-all group flex flex-col items-center gap-4 text-center">
+                                <div class="w-16 h-16 sm:w-20 sm:h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all shadow-sm">
+                                    <i class="fa-solid fa-hammer"></i>
+                                </div>
+                                <div class="font-black text-xl sm:text-2xl text-gray-800 group-hover:text-blue-600 transition-colors">자유 만들기</div>
+                                <p class="text-sm sm:text-base text-gray-500">원하는 모양을 마음껏 쌓아보고 관찰하세요.</p>
+                            </button>
+                            <button onclick="app.setMode('quiz')" class="bg-white border-2 border-purple-100 hover:border-purple-400 hover:shadow-2xl p-6 sm:p-8 rounded-3xl transition-all group flex flex-col items-center gap-4 text-center">
+                                <div class="w-16 h-16 sm:w-20 sm:h-20 bg-purple-50 text-purple-500 rounded-full flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 group-hover:bg-purple-500 group-hover:text-white transition-all shadow-sm">
+                                    <i class="fa-solid fa-gamepad"></i>
+                                </div>
+                                <div class="font-black text-xl sm:text-2xl text-gray-800 group-hover:text-purple-600 transition-colors">퀴즈 도전</div>
+                                <p class="text-sm sm:text-base text-gray-500">다양한 미션을 풀며 최고 점수에 도전하세요!</p>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+            },
+
+            updateRealTimeCounter(heightMap) {
+                const s = this.currentGridSize || 3;
+                for (let z = 0; z < s; z++) {
+                    for (let x = 0; x < s; x++) {
+                        const count = heightMap[x][z];
+                        const cellId = `count-cell-${x}-${z}`;
+                        const cell = document.getElementById(cellId);
+                        if (cell) {
+                            if (count > 0) {
+                                cell.textContent = count;
+                                cell.classList.add('has-blocks');
+                            } else {
+                                cell.textContent = ''; 
+                                cell.classList.remove('has-blocks');
+                            }
+                        }
+                    }
+                }
+                
+                let total = 0;
+                for(let x=0; x<s; x++) for(let z=0; z<s; z++) total += heightMap[x][z];
+                const totalEl = document.getElementById('free-build-total-count');
+                if(totalEl) totalEl.textContent = total;
+            },
+
+            changeGridSize(size) {
+                this.currentGridSize = parseInt(size);
+                this.startFreeBuild();
+            },
+
+            onCountCellClick(event, x, z) {
+                if (!this.mainEngine) return;
+                if (this.mainEngine.interactionMode === 'delete' || event.shiftKey) {
+                    this.mainEngine.removeTopBlock(x, z);
+                } else {
+                    this.mainEngine.addBlock(x, z);
+                }
+            },
+
+            onCountCellContextMenu(event, x, z) {
+                event.preventDefault();
+                if (!this.mainEngine) return;
+                this.mainEngine.removeTopBlock(x, z);
+            },
+
+            setInteractionMode(mode) {
+                if(this.mainEngine) this.mainEngine.interactionMode = mode;
+                if(this.quizEngine) this.quizEngine.interactionMode = mode;
+                
+                const btnAdd = document.getElementById('btn-mode-add');
+                const btnDel = document.getElementById('btn-mode-del');
+                
+                if(btnAdd && btnDel) {
+                    if(mode === 'add') {
+                        btnAdd.className = "flex-1 bg-white shadow-sm text-blue-600 font-bold py-2 rounded-md transition-all text-sm";
+                        btnDel.className = "flex-1 text-gray-500 hover:text-red-500 font-bold py-2 rounded-md transition-all text-sm";
+                    } else {
+                        btnAdd.className = "flex-1 text-gray-500 hover:text-blue-500 font-bold py-2 rounded-md transition-all text-sm";
+                        btnDel.className = "flex-1 bg-white shadow-sm text-red-600 font-bold py-2 rounded-md transition-all text-sm";
+                    }
+                }
+            },
+
+            startFreeBuild() {
+                const s = this.currentGridSize || 3;
+                let countGridHtml = `<div class="count-grid" style="grid-template-columns: repeat(${s}, 1fr);">`;
+                for (let z = 0; z < s; z++) { 
+                    for (let x = 0; x < s; x++) { 
+                        countGridHtml += `<div id="count-cell-${x}-${z}" onclick="app.onCountCellClick(event, ${x}, ${z})" oncontextmenu="app.onCountCellContextMenu(event, ${x}, ${z})" class="count-cell ${s>3 ? 'w-8 h-8 sm:w-10 sm:h-10 text-base' : ''}" title="클릭: 쌓기 / 우클릭: 빼기"></div>`;
+                    }
+                }
+                countGridHtml += `</div>`;
+
+                let layerButtonsHtml = `<button onclick="app.setLayerFilter('all')" class="layer-btn active bg-blue-500 text-white font-bold py-2 rounded-lg shadow-sm border border-blue-600 transition-colors text-sm ${s>3 ? 'col-span-2' : 'col-span-2'}">전체 보기</button>`;
+                for (let i = 1; i <= s; i++) {
+                    layerButtonsHtml += `<button onclick="app.setLayerFilter('${i}')" class="layer-btn bg-white text-gray-600 hover:bg-gray-100 font-bold py-2 rounded-lg shadow-sm border border-gray-300 transition-colors text-sm">${i}층만</button>`;
+                }
+
+                const html = `
+                    <div class="flex flex-col md:flex-row h-full w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden fade-in relative">
+                        <!-- Control Panel -->
+                        <div class="w-full md:w-80 bg-gray-50 p-4 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col gap-4 flex-shrink-0 z-10 overflow-y-auto max-h-[50vh] md:max-h-full">
+                            
+                            <div class="flex justify-between items-center border-b border-gray-200 pb-3">
+                                <h3 class="font-black text-lg text-gray-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-blue-500"></i> 조작 패널
+                                </h3>
+                                <select onchange="app.changeGridSize(this.value)" class="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 font-bold outline-none cursor-pointer">
+                                    <option value="3" ${s===3?'selected':''}>3x3x3 모드</option>
+                                    <option value="4" ${s===4?'selected':''}>4x4x4 모드</option>
+                                    <option value="5" ${s===5?'selected':''}>5x5x5 모드</option>
+                                </select>
+                            </div>
+                            
+                            <div class="flex bg-gray-200 p-1 rounded-lg">
+                                <button id="btn-mode-add" onclick="app.setInteractionMode('add')" class="flex-1 bg-white shadow-sm text-blue-600 font-bold py-2 rounded-md transition-all text-sm">설치</button>
+                                <button id="btn-mode-del" onclick="app.setInteractionMode('delete')" class="flex-1 text-gray-500 hover:text-red-500 font-bold py-2 rounded-md transition-all text-sm">삭제</button>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-600">층별 투시 보기</label>
+                                <div class="grid grid-cols-2 gap-2" id="layer-buttons">
+                                    ${layerButtonsHtml}
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mt-2 flex flex-col items-center">
+                                <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold mb-1 shadow-sm inline-block">위에서 본 모양</div>
+                                <p class="text-[11px] text-gray-400 font-bold mb-2.5"><i class="fa-solid fa-arrow-pointer text-orange-400 mr-0.5"></i> 클릭: 쌓기 | 우클릭: 빼기</p>
+                                ${countGridHtml}
+                                <div class="mt-3 text-gray-600 font-bold text-sm">총 개수: <span id="free-build-total-count" class="text-indigo-600 text-lg font-black ml-1">0</span>개</div>
+                            </div>
+
+                            <div class="flex flex-col gap-2 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mt-2">
+                                <h4 class="font-bold text-sm text-gray-600 mb-1">빠른 카메라 시점</h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="app.mainEngine.setCameraView('front')" class="bg-gray-50 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 text-sm font-bold py-2.5 rounded-lg transition-colors">앞</button>
+                                    <button onclick="app.mainEngine.setCameraView('right')" class="bg-gray-50 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 text-sm font-bold py-2.5 rounded-lg transition-colors">옆 (오른쪽)</button>
+                                    <button onclick="app.mainEngine.setCameraView('top')" class="bg-gray-50 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 text-sm font-bold py-2.5 rounded-lg transition-colors">위</button>
+                                    <button onclick="app.mainEngine.resetCamera()" class="bg-gray-50 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 text-sm font-bold py-2.5 rounded-lg transition-colors"><i class="fa-solid fa-rotate-right"></i> 자유</button>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2 md:mt-auto bg-blue-50/50 p-4 rounded-xl border border-blue-100 text-xs sm:text-sm font-bold text-gray-600 flex flex-col gap-2">
+                                <p class="flex items-center gap-2"><i class="fa-solid fa-hand-pointer text-blue-500 w-4 text-center"></i> <span>클릭/터치: <span class="text-blue-700">설치/삭제 모드에 따라</span></span></p>
+                                <p class="flex items-center gap-2"><i class="fa-solid fa-arrows-rotate text-gray-400 w-4 text-center"></i> <span>드래그: <span class="text-gray-700">화면 돌리기</span></span></p>
+                            </div>
+                            <button onclick="app.mainEngine.clearBlocks()" class="w-full bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white text-red-600 font-bold py-3 rounded-xl transition-all mt-2 shadow-sm">
+                                모두 지우기
+                            </button>
+                        </div>
+                        
+                        <!-- 3D Canvas Area -->
+                        <div class="flex-1 relative h-[50vh] md:h-auto min-h-[300px]">
+                            <div id="main-canvas-container" class="w-full h-full bg-gradient-to-b from-blue-50 to-white"></div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+                setTimeout(() => {
+                    this.mainEngine = new BlockEngine('main-canvas-container', { 
+                        gridSize: s,
+                        onBlocksChange: (map) => this.updateRealTimeCounter(map)
+                    });
+                }, 50);
+            },
+
+            setLayerFilter(layer) {
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-600');
+                    btn.classList.add('bg-white', 'text-gray-600', 'border-gray-300');
+                });
+                const clickedBtn = document.querySelector(`.layer-btn[onclick="app.setLayerFilter('${layer}')"]`);
+                if(clickedBtn) {
+                    clickedBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-600');
+                    clickedBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
+                }
+                if(this.mainEngine) this.mainEngine.setLayer(layer);
+            },
+
+            calculatePossibleCounts(map) {
+                const proj = this.getProjections(map);
+                const top = proj.top;
+                const front = proj.front;
+                const right = proj.right;
+                
+                const validPositions = [];
+                for(let x = 0; x < 3; x++) {
+                    for(let z = 0; z < 3; z++) {
+                        if(top[x][z] === 1) {
+                            validPositions.push({
+                                x: x, 
+                                z: z, 
+                                maxH: Math.min(front[x], right[2-z])
+                            });
+                        }
+                    }
+                }
+                
+                let possibleCounts = new Set();
+                const currentHeights = [[0,0,0],[0,0,0],[0,0,0]];
+                
+                const dfs = (idx) => {
+                    if (idx === validPositions.length) {
+                        let fCheck = [0,0,0];
+                        let rCheck = [0,0,0];
+                        let sum = 0;
+                        for(let x = 0; x < 3; x++) {
+                            for(let z = 0; z < 3; z++) {
+                                let h = currentHeights[x][z];
+                                sum += h;
+                                if(h > fCheck[x]) fCheck[x] = h;
+                                let viewCol = 2 - z;
+                                if(h > rCheck[viewCol]) rCheck[viewCol] = h;
+                            }
+                        }
+                        
+                        let isValid = true;
+                        for(let i = 0; i < 3; i++) {
+                            if(fCheck[i] !== front[i] || rCheck[i] !== right[i]) {
+                                isValid = false;
+                                break;
+                            }
+                        }
+                        
+                        if(isValid) {
+                            possibleCounts.add(sum);
+                        }
+                        return;
+                    }
+                    
+                    const pos = validPositions[idx];
+                    for(let h = 1; h <= pos.maxH; h++) {
+                        currentHeights[pos.x][pos.z] = h;
+                        dfs(idx + 1);
+                    }
+                    currentHeights[pos.x][pos.z] = 0; 
+                };
+                
+                dfs(0);
+                return possibleCounts;
+            },
+
+            generateRandomMap() {
+                let map = [[0,0,0],[0,0,0],[0,0,0]];
+                let count = Math.floor(Math.random() * 5) + 5; 
+                
+                map[1][1] = 1; 
+                let baseCount = 1;
+                const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+                
+                while(baseCount < 3) {
+                    for(let x=0; x<3; x++){
+                        for(let z=0; z<3; z++){
+                            if(map[x][z] === 1) {
+                                let d = dirs[Math.floor(Math.random()*dirs.length)];
+                                let nx = x+d[0], nz = z+d[1];
+                                if(nx>=0 && nx<3 && nz>=0 && nz<3 && map[nx][nz]===0 && Math.random()>0.5){
+                                    map[nx][nz] = 1;
+                                    baseCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                let currentTotal = baseCount;
+                let attempts = 0;
+                while(currentTotal < count && attempts < 100) {
+                    let x = Math.floor(Math.random()*3);
+                    let z = Math.floor(Math.random()*3);
+                    if(map[x][z] > 0 && map[x][z] < 3) {
+                        map[x][z]++;
+                        currentTotal++;
+                    }
+                    attempts++;
+                }
+                
+                this.targetMap = map;
+                this.targetCount = currentTotal;
+                
+                this.possibleCounts = this.calculatePossibleCounts(map);
+                this.minCount = Math.min(...this.possibleCounts);
+                this.maxCount = Math.max(...this.possibleCounts);
+                
+                return map;
+            },
+
+            renderQuizViews(map) {
+                const gridClass = "quiz-view-grid w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24";
+                
+                let topHtml = `<div class="${gridClass}" style="grid-template-columns: repeat(3, 1fr);">`;
+                for(let z=0; z<3; z++) {
+                    for(let x=0; x<3; x++) {
+                        let filled = map[x][z] > 0 ? 'filled-top' : '';
+                        topHtml += `<div class="quiz-cell ${filled}"></div>`;
+                    }
+                }
+                topHtml += `</div>`;
+
+                let frontHeights = [0,0,0];
+                for(let x=0; x<3; x++) {
+                    for(let z=0; z<3; z++) {
+                        if(map[x][z] > frontHeights[x]) frontHeights[x] = map[x][z];
+                    }
+                }
+                let frontHtml = `<div class="${gridClass}" style="grid-template-columns: repeat(3, 1fr);">`;
+                for(let h=3; h>=1; h--) { 
+                    for(let x=0; x<3; x++) { 
+                        let filled = frontHeights[x] >= h ? 'filled-front' : '';
+                        frontHtml += `<div class="quiz-cell ${filled}"></div>`;
+                    }
+                }
+                frontHtml += `</div>`;
+
+                let rightHeights = [0,0,0]; 
+                for(let z=0; z<3; z++) {
+                    let viewCol = 2 - z; 
+                    for(let x=0; x<3; x++) {
+                        if(map[x][z] > rightHeights[viewCol]) rightHeights[viewCol] = map[x][z];
+                    }
+                }
+                let rightHtml = `<div class="${gridClass}" style="grid-template-columns: repeat(3, 1fr);">`;
+                for(let h=3; h>=1; h--) {
+                    for(let col=0; col<3; col++) {
+                        let filled = rightHeights[col] >= h ? 'filled-right' : '';
+                        rightHtml += `<div class="quiz-cell ${filled}"></div>`;
+                    }
+                }
+                rightHtml += `</div>`;
+
+                return { topHtml, frontHtml, rightHtml };
+            },
+
+            startRandomQuiz() {
+                this.generateRandomMap();
+                this.currentQuizType = Math.floor(Math.random() * 3) + 1; 
+                
+                clearInterval(this.quizTimer); 
+
+                if(this.currentQuizType === 1) this.renderQuizType1();
+                else if(this.currentQuizType === 2) this.renderQuizType2();
+                else if(this.currentQuizType === 3) this.renderQuizType3();
+            },
+
+            renderQuizType1() {
+                const views = this.renderQuizViews(this.targetMap);
+                const html = `
+                    <div class="flex flex-col h-full w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                        <div class="bg-gradient-to-r from-purple-50 to-indigo-50 p-3 sm:p-4 border-b border-purple-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+                            <div>
+                                <span class="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black mr-2 shadow-sm inline-block mb-1 sm:mb-0">유형 1: 똑같이 만들기</span>
+                                <span class="font-bold text-gray-800 text-sm sm:text-base block sm:inline">위, 앞, 옆 그림을 보고 똑같이 만들어 보세요!</span>
+                            </div>
+                            <button onclick="app.checkQuiz1()" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 rounded-xl font-black shadow-md transition-colors active:scale-95">
+                                정답 확인하기 <i class="fa-solid fa-check ml-1"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-center gap-4 sm:gap-12 lg:gap-20 p-4 sm:p-6 bg-gray-50 border-b border-gray-200 shrink-0 shadow-inner">
+                            <div class="text-center group">
+                                <p class="text-xs sm:text-sm font-black text-gray-500 mb-2 group-hover:text-red-500 transition-colors">위에서 본 모양</p>
+                                ${views.topHtml}
+                            </div>
+                            <div class="text-center group">
+                                <p class="text-xs sm:text-sm font-black text-gray-500 mb-2 group-hover:text-blue-500 transition-colors">앞에서 본 모양</p>
+                                ${views.frontHtml}
+                            </div>
+                            <div class="text-center group">
+                                <p class="text-xs sm:text-sm font-black text-gray-500 mb-2 group-hover:text-green-500 transition-colors">옆에서 본 모양</p>
+                                ${views.rightHtml}
+                            </div>
+                        </div>
+
+                        <div class="flex-1 relative min-h-[300px]">
+                            <div id="quiz-canvas-container" class="w-full h-full bg-blue-50/20"></div>
+                            
+                            <div class="absolute top-4 left-4 flex bg-white/90 backdrop-blur-md p-1 rounded-lg shadow-lg border border-gray-100 z-10 w-32 sm:w-40">
+                                <button id="btn-mode-add" onclick="app.setInteractionMode('add')" class="flex-1 bg-white shadow-sm text-blue-600 font-bold py-1.5 rounded-md transition-all text-sm">설치</button>
+                                <button id="btn-mode-del" onclick="app.setInteractionMode('delete')" class="flex-1 text-gray-500 hover:text-red-500 font-bold py-1.5 rounded-md transition-all text-sm">삭제</button>
+                            </div>
+
+                            <div class="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 z-10 w-[90%] sm:w-auto justify-center">
+                                <button onclick="app.quizEngine.setCameraView('front')" class="flex-1 sm:flex-none bg-white hover:bg-gray-50 border border-gray-200 text-xs sm:text-sm px-3 py-2 rounded-xl font-bold text-gray-600 active:bg-gray-100">앞</button>
+                                <button onclick="app.quizEngine.setCameraView('right')" class="flex-1 sm:flex-none bg-white hover:bg-gray-50 border border-gray-200 text-xs sm:text-sm px-3 py-2 rounded-xl font-bold text-gray-600 active:bg-gray-100">옆</button>
+                                <button onclick="app.quizEngine.resetCamera()" class="flex-1 sm:flex-none bg-white hover:bg-gray-50 border border-gray-200 text-xs sm:text-sm px-3 py-2 rounded-xl font-bold text-gray-600 active:bg-gray-100"><i class="fa-solid fa-rotate-right"></i> 자유</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+                setTimeout(() => {
+                    this.quizEngine = new BlockEngine('quiz-canvas-container', { gridSize: 3 });
+                }, 50);
+            },
+
+            renderQuizType2() {
+                this.quizTimeLeft = 60; // Set to 60 seconds as requested
+                const views = this.renderQuizViews(this.targetMap);
+                
+                const html = `
+                    <div class="flex flex-col h-full w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                        <div class="bg-gradient-to-r from-red-50 to-orange-50 p-3 sm:p-4 border-b border-red-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+                            <div>
+                                <span class="bg-red-500 text-white px-2.5 py-1 rounded-md text-xs font-black mr-2 shadow-sm inline-block mb-1 sm:mb-0">유형 2: 개수 맞히기 (타임어택)</span>
+                                <span class="font-bold text-gray-800 text-sm sm:text-base block sm:inline">사용된 쌓기나무의 개수를 맞혀보세요!</span>
+                            </div>
+                            <div class="bg-white border-2 border-red-200 text-red-600 font-black px-5 py-2 rounded-xl flex items-center gap-2 shadow-sm self-end sm:self-auto">
+                                <i class="fa-solid fa-clock animate-pulse"></i> <span id="timer-display" class="w-12 text-center">60초</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-gray-50 relative">
+                            
+                            <div class="flex justify-center gap-4 sm:gap-16 lg:gap-24 mb-8 sm:mb-12 scale-100 sm:scale-110 z-10">
+                                <div class="text-center group">
+                                    <p class="text-xs sm:text-sm font-black text-gray-500 mb-3 group-hover:text-red-500 transition-colors">위에서 본 모양</p>
+                                    ${views.topHtml}
+                                </div>
+                                <div class="text-center group">
+                                    <p class="text-xs sm:text-sm font-black text-gray-500 mb-3 group-hover:text-blue-500 transition-colors">앞에서 본 모양</p>
+                                    ${views.frontHtml}
+                                </div>
+                                <div class="text-center group">
+                                    <p class="text-xs sm:text-sm font-black text-gray-500 mb-3 group-hover:text-green-500 transition-colors">옆에서 본 모양</p>
+                                    ${views.rightHtml}
+                                </div>
+                            </div>
+                            
+                            <!-- Compact, neatly sized input container -->
+                            <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-gray-100 flex flex-col items-center gap-4 w-full max-w-xs sm:max-w-sm z-10">
+                                <label class="font-black text-base sm:text-lg text-gray-800 text-center">쌓기나무는 총 몇 개일까요?</label>
+                                <div class="flex items-center justify-center gap-3 w-full">
+                                    <input type="number" id="quiz2-input" class="w-28 sm:w-32 text-center text-2xl sm:text-3xl font-black py-2.5 px-3 border-2 border-indigo-200 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-indigo-700 bg-indigo-50/30" placeholder="0">
+                                    <button onclick="app.checkQuiz2()" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black px-6 py-3 rounded-2xl text-base sm:text-lg shadow-md transition-all whitespace-nowrap">제출</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+                
+                const inputEl = document.getElementById('quiz2-input');
+                if(inputEl) {
+                    inputEl.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') this.checkQuiz2();
+                    });
+                }
+
+                this.quizTimer = setInterval(() => {
+                    this.quizTimeLeft--;
+                    const timerEl = document.getElementById('timer-display');
+                    if(timerEl) timerEl.innerText = `${this.quizTimeLeft}초`;
+                    
+                    if(this.quizTimeLeft <= 10 && timerEl) {
+                        timerEl.parentElement.classList.add('bg-red-50', 'border-red-400');
+                    }
+                    
+                    if(this.quizTimeLeft <= 0) {
+                        clearInterval(this.quizTimer);
+                        let ansStr = Array.from(this.possibleCounts).sort((a,b)=>a-b).join(', ');
+                        this.recordResult(2, '유형 2 (개수 맞히기)', false, 0);
+                        this.showModal('시간 초과', `오답입니다. 정답은 <b class="text-xl text-indigo-600">${ansStr}개</b>입니다.`, 'error', () => this.startRandomQuiz());
+                    }
+                }, 1000);
+            },
+
+            renderQuizType3() {
+                const html = `
+                    <div class="flex flex-col lg:flex-row h-full w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                        <div class="w-full lg:w-1/2 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-200 h-[45vh] lg:h-full shrink-0">
+                            <div class="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 sm:p-4 border-b border-blue-100 flex justify-between items-center shrink-0">
+                                <span class="bg-blue-500 text-white px-2.5 py-1 rounded-md text-xs font-black shadow-sm">유형 3: 층별 단면도 그리기</span>
+                            </div>
+                            <div class="flex-1 relative min-h-0">
+                                <div id="quiz-canvas-container" class="w-full h-full bg-gray-50/50"></div>
+                                <div class="absolute top-3 left-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm border border-gray-200 flex items-center gap-2 pointer-events-none">
+                                    <i class="fa-solid fa-hand-pointer text-blue-400"></i> 화면을 돌려가며 관찰하세요
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-full lg:w-1/2 bg-gray-50 flex flex-col h-[55vh] lg:h-full">
+                            <div class="p-3 sm:p-4 bg-white border-b border-gray-200 shrink-0 text-center shadow-sm z-10">
+                                <p class="font-bold text-gray-800 text-sm sm:text-base">오른쪽 빈칸을 클릭하여 각 층의 모양을 색칠하세요.</p>
+                            </div>
+                            
+                            <div class="flex-1 flex flex-col items-center justify-start lg:justify-center gap-4 sm:gap-8 p-4 sm:p-6 overflow-y-auto">
+                                ${[3, 2, 1].map(layer => `
+                                    <div class="flex items-center gap-4 sm:gap-8 w-full max-w-xs sm:max-w-sm justify-between bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100">
+                                        <div class="flex flex-col items-center">
+                                            <div class="font-black text-2xl sm:text-3xl ${layer===3 ? 'text-purple-400' : layer===2 ? 'text-blue-400' : 'text-green-400'}">${layer}층</div>
+                                        </div>
+                                        <div class="draw-grid w-24 h-24 sm:w-32 sm:h-32" id="draw-grid-${layer}">
+                                            ${Array(9).fill(0).map(() => `<div class="draw-cell" onclick="app.toggleDrawCell(this)"></div>`).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                
+                                <button onclick="app.checkQuiz3()" class="w-full max-w-xs mt-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black py-3 sm:py-4 rounded-2xl shadow-lg transition-colors text-lg sm:text-xl shrink-0 mb-8 lg:mb-0">
+                                    제출하기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+                
+                setTimeout(() => {
+                    this.quizEngine = new BlockEngine('quiz-canvas-container', { gridSize: 3, readOnly: true });
+                    this.quizEngine.loadHeightMap(this.targetMap);
+                    
+                    this.quizEngine.controls.autoRotate = true;
+                    this.quizEngine.controls.autoRotateSpeed = 1.5;
+                    
+                    this.quizEngine.controls.addEventListener('start', () => {
+                        this.quizEngine.controls.autoRotate = false;
+                    });
+                }, 50);
+            },
+
+            toggleDrawCell(cell) {
+                cell.classList.toggle('active');
+                if(window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(20);
+                }
+            },
+            
+            getProjections(map) {
+                let top = [[0,0,0],[0,0,0],[0,0,0]];
+                let front = [0,0,0];
+                let right = [0,0,0];
+
+                for(let x=0; x<3; x++) {
+                    for(let z=0; z<3; z++) {
+                        let h = map[x][z];
+                        if (h > 0) top[x][z] = 1;
+                        if (h > front[x]) front[x] = h;
+                        let viewCol = 2 - z; 
+                        if (h > right[viewCol]) right[viewCol] = h;
+                    }
+                }
+                return { top, front, right };
+            },
+
+            showModal(title, message, type, callback = null) {
+                const modal = document.getElementById('custom-modal');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                const iconEl = document.getElementById('modal-icon');
+                const btn = document.getElementById('modal-btn');
+                
+                titleEl.innerText = title;
+                msgEl.innerHTML = message; 
+                
+                if (type === 'success') {
+                    iconEl.innerHTML = '<i class="fa-solid fa-check text-white text-3xl sm:text-4xl"></i>';
+                    iconEl.className = 'w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center mb-6 bg-gradient-to-br from-green-400 to-green-600 shadow-inner';
+                    titleEl.className = 'text-2xl sm:text-3xl font-black text-center mb-3 text-green-600';
+                    btn.className = 'w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 sm:py-4 px-4 rounded-xl transition-all text-lg shadow-lg active:scale-95';
+                } else if (type === 'error') {
+                    iconEl.innerHTML = '<i class="fa-solid fa-xmark text-white text-3xl sm:text-4xl"></i>';
+                    iconEl.className = 'w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center mb-6 bg-gradient-to-br from-red-400 to-red-600 shadow-inner';
+                    titleEl.className = 'text-2xl sm:text-3xl font-black text-center mb-3 text-red-600';
+                    btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 px-4 rounded-xl transition-all text-lg shadow-lg active:scale-95';
+                } else {
+                    iconEl.innerHTML = '<i class="fa-solid fa-info text-white text-3xl sm:text-4xl"></i>';
+                    iconEl.className = 'w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center mb-6 bg-gradient-to-br from-blue-400 to-blue-600 shadow-inner';
+                    titleEl.className = 'text-2xl sm:text-3xl font-black text-center mb-3 text-blue-600';
+                    btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 sm:py-4 px-4 rounded-xl transition-all text-lg shadow-lg active:scale-95';
+                }
+
+                btn.onclick = () => {
+                    this.closeModal();
+                    if(callback) setTimeout(callback, 350);
+                };
+
+                modal.classList.remove('hidden');
+                void modal.offsetWidth;
+                modal.classList.remove('opacity-0');
+            },
+
+            closeModal() {
+                const modal = document.getElementById('custom-modal');
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 350); 
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+</body>
+</html>
