@@ -157,10 +157,14 @@
                 </button>
             </nav>
 
-            <div class="flex items-center gap-2 sm:gap-4">
+            <div class="flex items-center gap-2 sm:gap-3">
                 <div id="score-display" class="hidden bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-300 text-yellow-800 px-3 sm:px-4 py-1.5 rounded-full font-black shadow-sm flex items-center gap-2 text-sm sm:text-base">
                     <i class="fa-solid fa-star text-yellow-500"></i> <span class="hidden sm:inline">점수:</span> <span id="current-score" class="text-lg">0</span>
                 </div>
+
+                <button id="btn-select-quiz-type" onclick="app.showQuizTypeSelector()" class="hidden bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-extrabold text-xs sm:text-sm border border-indigo-300 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check"></i> <span class="hidden sm:inline">유형 변경</span>
+                </button>
 
                 <button id="btn-view-results" onclick="app.showResultsScreen()" class="hidden bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 rounded-full font-bold text-sm shadow-sm transition-all flex items-center gap-1.5">
                     <i class="fa-solid fa-file-invoice"></i> <span class="hidden sm:inline">결과보기</span>
@@ -184,6 +188,15 @@
             </button>
         </div>
     </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
 
     <script type="module">
         import * as THREE from 'three';
@@ -553,6 +566,7 @@
             quizHistory: [],
             quizTimer: null,
             quizTimeLeft: 60,
+            selectedQuizType: 0, // 0: random, 1: type1, 2: type2, 3: type3
             currentQuizType: 1,
             targetMap: null,
             targetCount: 0,
@@ -599,6 +613,7 @@
                 });
 
                 document.getElementById('score-display').classList.toggle('hidden', newMode !== 'quiz');
+                document.getElementById('btn-select-quiz-type').classList.toggle('hidden', newMode !== 'quiz');
                 document.getElementById('btn-view-results').classList.toggle('hidden', newMode !== 'quiz');
 
                 const main = document.getElementById('main-content');
@@ -607,7 +622,11 @@
                 if (newMode === 'home') this.renderHome();
                 else if (newMode === 'free_build') this.startFreeBuild();
                 else if (newMode === 'quiz') {
-                    this.promptNickname();
+                    if (!this.nickname) {
+                        this.promptNickname();
+                    } else {
+                        this.showQuizTypeSelector();
+                    }
                 }
             },
 
@@ -625,7 +644,7 @@
                             <input type="text" id="nickname-input" value="${this.nickname || ''}" placeholder="예: 수학천재" maxlength="10" 
                                 class="w-full text-center text-xl font-bold py-3 px-4 border-2 border-purple-200 rounded-2xl outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all text-gray-800">
                             <button onclick="app.confirmNicknameAndStart()" class="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all text-lg">
-                                퀴즈 시작하기 <i class="fa-solid fa-play ml-1"></i>
+                                다음 단계 <i class="fa-solid fa-arrow-right ml-1"></i>
                             </button>
                         </div>
                     </div>
@@ -648,7 +667,84 @@
                 this.quizHistory = [];
                 const scoreEl = document.getElementById('current-score');
                 if(scoreEl) scoreEl.innerText = '0';
-                this.startRandomQuiz();
+                this.showQuizTypeSelector();
+            },
+
+            showQuizTypeSelector() {
+                clearInterval(this.quizTimer);
+                const html = `
+                    <div class="flex flex-col items-center justify-center min-h-full max-w-4xl mx-auto p-4 fade-in">
+                        <div class="text-center mb-8">
+                            <span class="bg-purple-100 text-purple-700 font-extrabold px-3 py-1 rounded-full text-xs sm:text-sm">도전자: ${this.nickname}님</span>
+                            <h2 class="text-2xl sm:text-4xl font-black text-gray-800 mt-2">ㅋ퀴즈 유형 선택</h2>
+                            <p class="text-sm sm:text-base text-gray-500 mt-1 font-medium"></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full max-w-3xl">
+                            <!-- Type 1 Card -->
+                            <div onclick="app.selectQuizType(1)" class="bg-white hover:border-purple-500 border-2 border-transparent p-5 sm:p-6 rounded-3xl shadow-md hover:shadow-xl transition-all cursor-pointer flex items-start gap-4 group">
+                                <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-inner">
+                                    <i class="fa-solid fa-shapes"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h3 class="font-black text-lg text-gray-800 group-hover:text-purple-600 transition-colors">유형 1: 똑같이 만들기</h3>
+                                        <span class="text-xs bg-purple-50 text-purple-600 font-bold px-2 py-0.5 rounded-md">기본/공간감</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-gray-500 font-medium">위, 앞, 옆 모습이 그려진 투시도를 보고 똑같은 모양의 3D 쌓기나무를 직접 조립합니다.</p>
+                                </div>
+                            </div>
+
+                            <!-- Type 2 Card -->
+                            <div onclick="app.selectQuizType(2)" class="bg-white hover:border-red-500 border-2 border-transparent p-5 sm:p-6 rounded-3xl shadow-md hover:shadow-xl transition-all cursor-pointer flex items-start gap-4 group">
+                                <div class="w-14 h-14 bg-red-100 text-red-500 rounded-2xl flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all shadow-inner">
+                                    <i class="fa-solid fa-calculator"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h3 class="font-black text-lg text-gray-800 group-hover:text-red-600 transition-colors">유형 2: 개수 맞히기</h3>
+                                        <span class="text-xs bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-md">타임어택</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-gray-500 font-medium">제시된 위, 앞, 옆 모습을 종합하여 사용된 쌓기나무의 총 개수를 추론하여 맞힙니다.</p>
+                                </div>
+                            </div>
+
+                            <!-- Type 3 Card -->
+                            <div onclick="app.selectQuizType(3)" class="bg-white hover:border-blue-500 border-2 border-transparent p-5 sm:p-6 rounded-3xl shadow-md hover:shadow-xl transition-all cursor-pointer flex items-start gap-4 group">
+                                <div class="w-14 h-14 bg-blue-100 text-blue-500 rounded-2xl flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all shadow-inner">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h3 class="font-black text-lg text-gray-800 group-hover:text-blue-600 transition-colors">유형 3: 층별 단면도</h3>
+                                        <span class="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-md">분석/표현</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-gray-500 font-medium">3D 쌓기나무 입체도형을 관찰하고 1층, 2층, 3층의 단면도 모양을 각각 정확히 그립니다.</p>
+                                </div>
+                            </div>
+
+                            <!-- Type 0 Random Card -->
+                            <div onclick="app.selectQuizType(0)" class="bg-gradient-to-br from-indigo-500 to-purple-600 p-5 sm:p-6 rounded-3xl shadow-md hover:shadow-xl transition-all cursor-pointer flex items-start gap-4 text-white group">
+                                <div class="w-14 h-14 bg-white/20 text-white rounded-2xl flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 transition-all shadow-inner">
+                                    <i class="fa-solid fa-dice"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h3 class="font-black text-lg text-white">무작위 종합 도전</h3>
+                                        <span class="text-xs bg-white/20 text-white font-bold px-2 py-0.5 rounded-md">실전 모드</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-purple-100 font-medium">유형 1, 2, 3이 랜덤으로 무작위 출제되어 실전 감각을 기릅니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('main-content').innerHTML = html;
+            },
+
+            selectQuizType(type) {
+                this.selectedQuizType = type;
+                this.startNextQuiz();
             },
 
             recordResult(quizTypeNum, typeName, isCorrect, points) {
@@ -699,10 +795,10 @@
                             <div class="flex justify-between items-start border-b border-gray-100 pb-5 mt-2">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="bg-purple-100 text-purple-700 text-xs font-black px-2.5 py-1 rounded-md">공간과 입체</span>
+                                        <span class="bg-purple-100 text-purple-700 text-xs font-black px-2.5 py-1 rounded-md">초등 수학 공간지각력 평가</span>
                                         <span class="text-xs text-gray-400 font-medium">${today}</span>
                                     </div>
-                                    <h2 class="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">쌓기나무 퀴즈 결과표</h2>
+                                    <h2 class="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">쌓기나무 퀴즈 성적표</h2>
                                 </div>
                                 <div class="bg-gradient-to-br from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-2xl text-center shadow-md">
                                     <div class="text-[10px] uppercase font-bold opacity-80">도전 닉네임</div>
@@ -748,7 +844,7 @@
                                 </div>
                             </div>
 
-                            <!-- Card Footer Watermark (URL Removed) -->
+                            <!-- Card Footer Watermark -->
                             <div class="pt-2 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400 font-medium">
                                 <span><i class="fa-solid fa-cubes text-purple-400 mr-1"></i> 쌓기나무 마스터</span>
                             </div>
@@ -759,7 +855,7 @@
                             <button onclick="app.downloadResultImage()" class="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-black py-3.5 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-base">
                                 <i class="fa-solid fa-download"></i> 성적표 사진으로 저장하기
                             </button>
-                            <button onclick="app.startRandomQuiz()" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black px-6 py-3.5 rounded-2xl shadow-lg transition-all text-base">
+                            <button onclick="app.showQuizTypeSelector()" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black px-6 py-3.5 rounded-2xl shadow-lg transition-all text-base">
                                 이어서 더 풀기 <i class="fa-solid fa-arrow-right ml-1"></i>
                             </button>
                         </div>
@@ -824,10 +920,10 @@
                     const pts = isExactMatch ? 15 : 10;
                     this.addScore(pts);
                     this.recordResult(1, '유형 1 (똑같이 만들기)', true, pts);
-                    this.showModal(`정답입니다! (+${pts}점)`, '위, 앞, 옆 모습을 모두 맞혔습니다.', 'success', () => this.startRandomQuiz());
+                    this.showModal(`정답입니다! (+${pts}점)`, '위, 앞, 옆 모습을 모두 맞혔습니다.', 'success', () => this.startNextQuiz());
                 } else {
                     this.recordResult(1, '유형 1 (똑같이 만들기)', false, 0);
-                    this.showModal('오답입니다.', '제시된 모습과 일치하지 않습니다.', 'error', () => this.startRandomQuiz());
+                    this.showModal('오답입니다.', '제시된 모습과 일치하지 않습니다.', 'error', () => this.startNextQuiz());
                 }
             },
 
@@ -848,19 +944,19 @@
                     let extraMsg = '정답입니다!';
                     if (this.possibleCounts.size > 1 && input === this.minCount) {
                         pts = 25 + timeBonus;
-                        extraMsg = '정답입니다! (쌓기나무를 가장 적게 사용하였습니다!)';
+                        extraMsg = '정답입니다! (가장 적게 사용한 정답입니다!)';
                     } else if (this.possibleCounts.size > 1 && input === this.maxCount) {
                         pts = 20 + timeBonus;
-                        extraMsg = '정답입니다! (쌓기나무를 가장 많이 사용하였습니다!)';
+                        extraMsg = '정답입니다! (가장 많이 사용한 정답입니다!)';
                     }
 
                     this.addScore(pts);
                     this.recordResult(2, '유형 2 (개수 맞히기)', true, pts);
-                    this.showModal('정답입니다!', `${extraMsg}<br>(+${pts}점)`, 'success', () => this.startRandomQuiz());
+                    this.showModal('정답입니다!', `${extraMsg}<br>(+${pts}점)`, 'success', () => this.startNextQuiz());
                 } else {
                     this.recordResult(2, '유형 2 (개수 맞히기)', false, 0);
                     let ansStr = Array.from(this.possibleCounts).sort((a,b)=>a-b).join(', ');
-                    this.showModal('오답입니다.', `정답은 <b class="text-xl text-indigo-600">${ansStr}개</b>입니다.`, 'error', () => this.startRandomQuiz());
+                    this.showModal('오답입니다.', `정답은 <b class="text-xl text-indigo-600">${ansStr}개</b> 입니다.`, 'error', () => this.startNextQuiz());
                 }
             },
 
@@ -889,10 +985,10 @@
                 if (isCorrect) {
                     this.addScore(20);
                     this.recordResult(3, '유형 3 (층별 단면도)', true, 20);
-                    this.showModal('정답입니다! (+20점)', '층별 단면도를 올바르게 작성하였습니다.', 'success', () => this.startRandomQuiz());
+                    this.showModal('정답입니다! (+20점)', '층별 단면도를 올바르게 작성하였습니다.', 'success', () => this.startNextQuiz());
                 } else {
                     this.recordResult(3, '유형 3 (층별 단면도)', false, 0);
-                    this.showModal('오답입니다.', '층별 단면도가 일치하지 않습니다.', 'error', () => this.startRandomQuiz());
+                    this.showModal('오답입니다.', '층별 단면도가 일치하지 않습니다.', 'error', () => this.startNextQuiz());
                 }
             },
 
@@ -903,10 +999,10 @@
                             <i class="fa-solid fa-cubes text-5xl sm:text-7xl text-orange-400 drop-shadow-md"></i>
                         </div>
                         <h2 class="text-3xl sm:text-5xl md:text-6xl font-black text-gray-800 leading-tight tracking-tight">
-                            수학-공간과입체,<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">쌓기나무</span> 마스터
+                            공간과 입체,<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">쌓기나무</span> 마스터
                         </h2>
                         <p class="text-base sm:text-xl text-gray-500 font-medium max-w-xl leading-relaxed">
-                            3D로 직접 이리저리 돌려보며 만들고,<br class="sm:hidden"> 퀴즈풀이로 학습해보세요!
+                            3D로 직접 이리저리 돌려보며 만들고,<br class="sm:hidden"> 다양한 유형의 퀴즈로 공간 감각을 키워봅시다
                         </p>
                         
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full max-w-2xl mt-4 sm:mt-8">
@@ -922,7 +1018,7 @@
                                     <i class="fa-solid fa-gamepad"></i>
                                 </div>
                                 <div class="font-black text-xl sm:text-2xl text-gray-800 group-hover:text-purple-600 transition-colors">퀴즈 도전</div>
-                                <p class="text-sm sm:text-base text-gray-500">다양한 미션을 풀며 최고 점수에 도전하세요!</p>
+                                <p class="text-sm sm:text-base text-gray-500">원하는 유형별 퀴즈에 도전하세요!</p>
                             </button>
                         </div>
                     </div>
@@ -1153,43 +1249,93 @@
                 return possibleCounts;
             },
 
+            rotateMap90(map) {
+                let res = [[0,0,0],[0,0,0],[0,0,0]];
+                for(let x=0; x<3; x++) {
+                    for(let z=0; z<3; z++) {
+                        res[z][2-x] = map[x][z];
+                    }
+                }
+                return res;
+            },
+
+            flipMap(map) {
+                let res = [[0,0,0],[0,0,0],[0,0,0]];
+                for(let x=0; x<3; x++) {
+                    for(let z=0; z<3; z++) {
+                        res[2-x][z] = map[x][z];
+                    }
+                }
+                return res;
+            },
+
             generateRandomMap() {
-                let map = [[0,0,0],[0,0,0],[0,0,0]];
-                let count = Math.floor(Math.random() * 5) + 5; 
-                
-                map[1][1] = 1; 
-                let baseCount = 1;
-                const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
-                
-                while(baseCount < 3) {
-                    for(let x=0; x<3; x++){
-                        for(let z=0; z<3; z++){
-                            if(map[x][z] === 1) {
-                                let d = dirs[Math.floor(Math.random()*dirs.length)];
-                                let nx = x+d[0], nz = z+d[1];
-                                if(nx>=0 && nx<3 && nz>=0 && nz<3 && map[nx][nz]===0 && Math.random()>0.5){
-                                    map[nx][nz] = 1;
-                                    baseCount++;
-                                }
-                            }
+                // High diversity archetypes tailored for elementary 3x3x3 curriculum
+                const archetypes = [
+                    // 1. Staircase (계단형)
+                    [[1, 0, 0], [2, 1, 0], [3, 2, 1]],
+                    [[0, 1, 2], [0, 0, 1], [0, 0, 0]],
+                    
+                    // 2. L-shape (ㄴ자형)
+                    [[1, 1, 1], [2, 0, 0], [3, 0, 0]],
+                    [[2, 2, 2], [1, 0, 0], [1, 0, 0]],
+
+                    // 3. U-shape / Tunnel (ㄷ자 / 아치형)
+                    [[3, 0, 3], [1, 0, 1], [1, 0, 1]],
+                    [[2, 1, 2], [0, 0, 0], [2, 1, 2]],
+
+                    // 4. Center Tower & Wings (중앙 탑과 날개)
+                    [[1, 1, 1], [1, 3, 1], [1, 1, 1]],
+                    [[0, 1, 0], [1, 3, 1], [0, 1, 0]],
+
+                    // 5. Four Corner Towers (모퉁이 기둥형)
+                    [[2, 0, 3], [0, 0, 0], [1, 0, 2]],
+                    [[3, 1, 2], [1, 0, 1], [2, 1, 3]],
+
+                    // 6. Cross / T-Shape (십자 / T자형)
+                    [[0, 2, 0], [1, 3, 1], [0, 2, 0]],
+                    [[3, 3, 3], [0, 2, 0], [0, 1, 0]],
+
+                    // 7. Hidden Block Challenge (숨겨진 블록 감추기 - 개수 맞히기 핵심)
+                    [[2, 3, 1], [1, 1, 1], [2, 1, 3]],
+                    [[3, 1, 1], [1, 1, 1], [1, 1, 2]],
+
+                    // 8. Diagonal Step (대각선 배치)
+                    [[3, 0, 0], [0, 2, 0], [0, 0, 1]],
+                    [[1, 2, 0], [2, 3, 1], [0, 1, 2]]
+                ];
+
+                // Select a random base archetype
+                let map = JSON.parse(JSON.stringify(archetypes[Math.floor(Math.random() * archetypes.length)]));
+
+                // Apply random transformations (rotations & flips) to multiply diversity
+                const rotations = Math.floor(Math.random() * 4);
+                for(let i=0; i<rotations; i++) {
+                    map = this.rotateMap90(map);
+                }
+                if(Math.random() > 0.5) {
+                    map = this.flipMap(map);
+                }
+
+                // Add small variations to height values without breaking validity
+                if(Math.random() > 0.4) {
+                    let nonZero = [];
+                    for(let x=0; x<3; x++) {
+                        for(let z=0; z<3; z++) {
+                            if(map[x][z] > 0) nonZero.push({x, z});
                         }
                     }
-                }
-                
-                let currentTotal = baseCount;
-                let attempts = 0;
-                while(currentTotal < count && attempts < 100) {
-                    let x = Math.floor(Math.random()*3);
-                    let z = Math.floor(Math.random()*3);
-                    if(map[x][z] > 0 && map[x][z] < 3) {
-                        map[x][z]++;
-                        currentTotal++;
+                    if(nonZero.length > 0) {
+                        const targetCell = nonZero[Math.floor(Math.random() * nonZero.length)];
+                        map[targetCell.x][targetCell.z] = Math.min(3, Math.max(1, map[targetCell.x][targetCell.z] + (Math.random() > 0.5 ? 1 : -1)));
                     }
-                    attempts++;
                 }
-                
+
                 this.targetMap = map;
-                this.targetCount = currentTotal;
+                
+                let total = 0;
+                for(let x=0; x<3; x++) for(let z=0; z<3; z++) total += map[x][z];
+                this.targetCount = total;
                 
                 this.possibleCounts = this.calculatePossibleCounts(map);
                 this.minCount = Math.min(...this.possibleCounts);
@@ -1244,9 +1390,14 @@
                 return { topHtml, frontHtml, rightHtml };
             },
 
-            startRandomQuiz() {
+            startNextQuiz() {
                 this.generateRandomMap();
-                this.currentQuizType = Math.floor(Math.random() * 3) + 1; 
+                
+                if (this.selectedQuizType === 0) {
+                    this.currentQuizType = Math.floor(Math.random() * 3) + 1; 
+                } else {
+                    this.currentQuizType = this.selectedQuizType;
+                }
                 
                 clearInterval(this.quizTimer); 
 
@@ -1307,7 +1458,7 @@
             },
 
             renderQuizType2() {
-                this.quizTimeLeft = 60; // Set to 60 seconds as requested
+                this.quizTimeLeft = 60; 
                 const views = this.renderQuizViews(this.targetMap);
                 
                 const html = `
@@ -1339,7 +1490,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Compact, neatly sized input container -->
                             <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-gray-100 flex flex-col items-center gap-4 w-full max-w-xs sm:max-w-sm z-10">
                                 <label class="font-black text-base sm:text-lg text-gray-800 text-center">쌓기나무는 총 몇 개일까요?</label>
                                 <div class="flex items-center justify-center gap-3 w-full">
@@ -1372,7 +1522,7 @@
                         clearInterval(this.quizTimer);
                         let ansStr = Array.from(this.possibleCounts).sort((a,b)=>a-b).join(', ');
                         this.recordResult(2, '유형 2 (개수 맞히기)', false, 0);
-                        this.showModal('시간 초과', `오답입니다. 정답은 <b class="text-xl text-indigo-600">${ansStr}개</b>입니다.`, 'error', () => this.startRandomQuiz());
+                        this.showModal('시간 초과', `오답입니다. 정답은 <b class="text-xl text-indigo-600">${ansStr}개</b> 입니다.`, 'error', () => this.startNextQuiz());
                     }
                 }, 1000);
             },
