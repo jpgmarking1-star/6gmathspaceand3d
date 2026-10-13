@@ -1190,11 +1190,14 @@
                 for (let x = 0; x < n; x++) {
                     for (let z = 0; z < n; z++) {
                         const h = Number(heightMap[x]?.[z] || 0);
-                        if (h > 0) next.top[n - 1 - z][x] = true;
+                        // 위에서 본 모양의 아래쪽 행이 '앞' 방향(z가 큰 쪽)이 되도록 맞춥니다.
+                        if (h > 0) next.top[z][x] = true;
                         for (let y = 0; y < h; y++) {
                             const row = n - 1 - y;
+                            // 앞에서 본 모양: 가로축은 x, 깊이(z) 방향에서 가장 높은 높이를 투영합니다.
                             next.front[row][x] = true;
-                            next.side[row][z] = true;
+                            // 옆에서 본 모양: 앞(z가 큰 쪽)이 왼쪽에 오도록 가로 방향을 뒤집습니다.
+                            next.side[row][n - 1 - z] = true;
                         }
                     }
                 }
@@ -1228,11 +1231,11 @@
                 const map = Array.from({length:n}, () => Array(n).fill(0));
                 // 선택한 앞·옆·위 투영이 모두 겹치는 칸을 바탕으로 각 위치의 높이를 결정합니다.
                 for (let x=0; x<n; x++) for (let z=0; z<n; z++) {
-                    if (!this.projectionState.top[n-1-z][x]) continue;
+                    if (!this.projectionState.top[z][x]) continue;
                     let highest = -1;
                     for (let y=0; y<n; y++) {
                         const row = n-1-y;
-                        if (this.projectionState.front[row][x] && this.projectionState.side[row][z]) highest = y;
+                        if (this.projectionState.front[row][x] && this.projectionState.side[row][n-1-z]) highest = y;
                     }
                     map[x][z] = highest + 1;
                 }
